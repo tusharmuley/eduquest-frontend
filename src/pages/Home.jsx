@@ -80,12 +80,12 @@ export default function Home( {onLogout} ) {
     }, []);
 
     const handleUpload = async () => {
-        if (!file || !title.trim() || !subject.trim()) return;
+        if (!file || !title.trim()) return;
 
         const fd = new FormData();
         fd.append("file", file);
         fd.append("title", title);
-        fd.append("subject", subject);
+        // fd.append("subject", subject);
 
         setUploading(true);
         try {
@@ -162,9 +162,14 @@ export default function Home( {onLogout} ) {
                         : questions.split(/\n+/).filter((q) => q.trim());
                 } else if (answer) {
                     // Split answer string by numbered pattern (1. ... 2. ... etc)
-                    finalList = answer.split(/\n?\s*\d+\.\s+/)
-                        .filter((q) => q.trim()) // Remove empty strings
-                        .map((q, i) => `${q.trim()}`);
+                    // finalList = answer.split(/\n\s*\d+\.\s+/)
+                    //     .filter((q) => q.trim()) // Remove empty strings
+                    //     .map((q, i) => `${q.trim()}`);
+                    finalList = answer
+                        .replace(/\n\s*(\d+\.\s+)/g, '\n@@@Q$1') // Keep the number and mark question start
+                        .split('@@@Q')                           // Split using marker
+                        .filter(q => q.trim())                  // Remove empty entries
+                        .map(q => q.trim());                    // Trim spaces
                 }
 
                 if (finalList.length === 0) {
@@ -284,17 +289,17 @@ export default function Home( {onLogout} ) {
                                 onChange={(e) => setTitle(e.target.value)}
                                 className="modal-input"
                             />
-                            <input
+                            {/* <input
                                 type="text"
                                 placeholder="Subject"
                                 value={subject}
                                 onChange={(e) => setSubject(e.target.value)}
                                 className="modal-input"
-                            />
+                            /> */}
                             <div className="modal-input modal-file">
                                 <input
                                     type="file"
-                                    accept=".pdf"
+                                    accept=".pdf,.xlsx,.xls"
                                     onChange={(e) => setFile(e.target.files[0])}
                                 />
                             </div>
@@ -302,7 +307,7 @@ export default function Home( {onLogout} ) {
                                 <button
                                     className="btn modal-upload-btn"
                                     onClick={handleUpload}
-                                    disabled={uploading || !file || !title || !subject}
+                                    disabled={uploading || !file || !title }
                                 >
                                     {uploading ? "Uploading…" : "Upload"}
                                 </button>
