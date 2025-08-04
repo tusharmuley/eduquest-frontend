@@ -3,7 +3,7 @@ import axios from "axios";
 import "../UI/Home.css";
 import { API_URL } from '../Api'; // Import API_URL from Api.jsx
 
-export default function Home( {onLogout} ) {
+export default function Home({ onLogout }) {
     // console.log("Home component rendered",API_URL);
     const [books, setBooks] = useState([]);
     const [selectedBook, setSelectedBook] = useState(null);
@@ -19,6 +19,8 @@ export default function Home( {onLogout} ) {
     const [subject, setSubject] = useState("");
     const [placeholderIndex, setPlaceholderIndex] = useState(0);
     const [alertMessage, setAlertMessage] = useState("");
+    const [websiteUrl, setWebsiteUrl] = useState("");
+
 
     const token = localStorage.getItem("access"); // get JWT access token
 
@@ -79,24 +81,30 @@ export default function Home( {onLogout} ) {
         fetchBooks();
     }, []);
 
+
     const handleUpload = async () => {
-        if (!file || !title.trim()) return;
+        if (!title.trim()) return;
+
+        if (!file && !websiteUrl.trim()) {
+            alert("Upload a file OR provide a website URL.");
+            return;
+        }
 
         const fd = new FormData();
-        fd.append("file", file);
         fd.append("title", title);
-        // fd.append("subject", subject);
+        if (file) fd.append("file", file);
+        if (websiteUrl.trim()) fd.append("website_url", websiteUrl.trim());
 
         setUploading(true);
         try {
-            // ✅ Upload
-            await axios.post(`${API_URL}api/books/`, fd, {
+            const res = await axios.post(`${API_URL}api/books/`, fd, {
                 headers: {
                     Authorization: `Bearer ${token}`,
                 },
             });
+
             await fetchBooks();
-            setAlertMessage("✅ Book uploaded successfully!");      
+            setAlertMessage("✅ Book uploaded successfully!");
             setTimeout(() => setAlertMessage(""), 3000);
 
         } catch {
@@ -105,10 +113,11 @@ export default function Home( {onLogout} ) {
             setUploading(false);
             setShowModal(false);
             setFile(null);
+            setWebsiteUrl("");
             setTitle("");
-            setSubject("");
         }
     };
+
 
 
     const handleDeleteBook = async (bookId) => {
@@ -126,7 +135,7 @@ export default function Home( {onLogout} ) {
             if (selectedBook?.id === bookId) {
                 setSelectedBook(null);
             }
-            setAlertMessage("✅ Book Deleted successfully!");      
+            setAlertMessage("✅ Book Deleted successfully!");
             setTimeout(() => setAlertMessage(""), 3000);
         } catch {
             alert("Delete failed");
@@ -144,7 +153,7 @@ export default function Home( {onLogout} ) {
             .post(`${API_URL}api/generate-questions/`, {
                 prompt,
                 book_id: selectedBook.id
-                },
+            },
                 {
                     headers: {
                         Authorization: `Bearer ${token}`,
@@ -186,21 +195,26 @@ export default function Home( {onLogout} ) {
     return (
         <div className="home-container">
             <div style={{ display: "flex", justifyContent: "flex-end", position: "fixed", top: 10, right: 20 }}>
-                    <button className="logout-btn" onClick={onLogout}>
-                        Logout
-                    </button>
+                <button className="logout-btn" onClick={onLogout}>
+                    Logout
+                </button>
             </div>
             <div className="card">
-                <h1 className="card-title">📘 AI-EduQuest <br></br> Ask Your Book Anything</h1>
+                <h1 className="card-title">📘 SmartCorp AI – RAG <br></br> Ask Your data Anything</h1>
 
                 {/* Top Section */}
                 <div className="top-row">
                     <button
                         className="btn upload-btn"
-                        onClick={() => setShowModal(true)}
+                        onClick={() => {
+                            setShowModal(true)
+                            setFile({});        // 👈 force file tab to be default
+                            setWebsiteUrl("");
+                        }
+                        }
                         disabled={uploading}
                     >
-                        {uploading ? "Uploading…" : "Upload Book"}
+                        {uploading ? "Uploading…" : "Upload"}
                     </button>
 
                     <div className="custom-select" ref={dropdownRef}>
@@ -280,40 +294,85 @@ export default function Home( {onLogout} ) {
             {showModal && (
                 <div className="modal-backdrop">
                     <div className="modal">
-                        <h3 className="modal-title">Upload New Book (.pdf file)</h3>
+                        <h3 className="modal-title">Upload New</h3>
+
+                        {/* TABS */}
+                        <div className="modal-tabs">
+                            <button
+                                className={`tab-btn ${file ? "active" : ""}`}
+                                onClick={() => {
+                                    setWebsiteUrl("");
+                                    setFile({}); // Dummy object to force tab switch
+                                }}
+                            >
+                                📁 File Upload
+                            </button>
+                            <button
+                                className={`tab-btn ${websiteUrl ? "active" : ""}`}
+                                onClick={() => {
+                                    setFile(null);
+                                    setWebsiteUrl("https://"); // prefill
+                                }}
+                            >
+                                🌐 Website URL
+                            </button>
+                        </div>
+
+                        {/* FORM */}
                         <div className="modal-form">
+                            <label className="modal-label">📘 Title</label>
                             <input
                                 type="text"
-                                placeholder="Book Title"
+                                placeholder="Enter book title"
                                 value={title}
                                 onChange={(e) => setTitle(e.target.value)}
                                 className="modal-input"
                             />
-                            {/* <input
-                                type="text"
-                                placeholder="Subject"
-                                value={subject}
-                                onChange={(e) => setSubject(e.target.value)}
-                                className="modal-input"
-                            /> */}
-                            <div className="modal-input modal-file">
-                                <input
-                                    type="file"
-                                    accept=".pdf,.xlsx,.xls"
-                                    onChange={(e) => setFile(e.target.files[0])}
-                                />
-                            </div>
+
+                            {/* FILE UPLOAD TAB */}
+                            {file && (
+                                <>
+                                    <label className="modal-label">Select a file (.pdf, .docx, .csv, .xlsx)</label>
+                                    <div className="modal-input modal-file">
+                                        <input
+                                            type="file"
+                                            accept=".pdf,.docx,.xlsx,.xls,.csv"
+                                            onChange={(e) => setFile(e.target.files[0])}
+                                        />
+                                    </div>
+                                </>
+                            )}
+
+                            {/* WEBSITE TAB */}
+                            {websiteUrl && (
+                                <>
+                                    <label className="modal-label">Enter website URL</label>
+                                    <input
+                                        type="text"
+                                        placeholder="https://example.com"
+                                        value={websiteUrl}
+                                        onChange={(e) => setWebsiteUrl(e.target.value)}
+                                        className="modal-input"
+                                    />
+                                </>
+                            )}
+
                             <div className="modal-buttons">
                                 <button
                                     className="btn modal-upload-btn"
                                     onClick={handleUpload}
-                                    disabled={uploading || !file || !title }
+                                    disabled={uploading || (!file && !websiteUrl) || !title}
                                 >
                                     {uploading ? "Uploading…" : "Upload"}
                                 </button>
                                 <button
                                     className="btn cancel-btn"
-                                    onClick={() => setShowModal(false)}
+                                    onClick={() => {
+                                        setShowModal(false);
+                                        setFile(null);
+                                        setWebsiteUrl("");
+                                        setTitle("");
+                                    }}
                                     disabled={uploading}
                                 >
                                     Cancel
@@ -324,23 +383,24 @@ export default function Home( {onLogout} ) {
                 </div>
             )}
 
+
             {alertMessage && (
-            <div style={{
-                position: "fixed",
-                bottom: "20px",
-                left: "50%",
-                transform: "translateX(-50%)",
-                backgroundColor: "#4CAF50",
-                color: "white",
-                padding: "12px 24px",
-                borderRadius: "6px",
-                boxShadow: "0px 4px 12px rgba(0,0,0,0.2)",
-                zIndex: 1000,
-                transition: "opacity 0.3s ease"
-            }}>
-                {alertMessage}
-            </div>
-        )}
+                <div style={{
+                    position: "fixed",
+                    bottom: "20px",
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    backgroundColor: "#4CAF50",
+                    color: "white",
+                    padding: "12px 24px",
+                    borderRadius: "6px",
+                    boxShadow: "0px 4px 12px rgba(0,0,0,0.2)",
+                    zIndex: 1000,
+                    transition: "opacity 0.3s ease"
+                }}>
+                    {alertMessage}
+                </div>
+            )}
 
 
         </div>

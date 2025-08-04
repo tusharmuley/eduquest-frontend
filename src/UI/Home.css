@@ -288,3 +288,55 @@ body {
 .logout-btn:hover {
   background: linear-gradient(to right, #dc2626, #f43f5e);
 }
+
+
+
+.modal-label {
+  font-weight: bold;
+  margin-top: 10px;
+  margin-bottom: 4px;
+  display: block;
+  font-size: 14px;
+}
+
+.input-disabled input {
+  background-color: #f2f2f2;
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.modal-note {
+  font-size: 13px;
+  margin-top: 8px;
+  color: #555;
+  font-style: italic;
+  text-align: left;
+}
+
+.modal-tabs {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  border-bottom: 1px solid #ccc;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 10px;
+  font-size: 15px;
+  background-color: #f8f8f8;
+  border: none;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.tab-btn:hover {
+  background-color: #f0f0f0;
+}
+
+.tab-btn.active {
+  background-color: #ffffff;
+  border-bottom: 2px solid #007bff; 
+  font-weight: bold;
+}
