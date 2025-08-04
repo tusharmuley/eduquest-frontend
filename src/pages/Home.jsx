@@ -20,6 +20,8 @@ export default function Home({ onLogout }) {
     const [placeholderIndex, setPlaceholderIndex] = useState(0);
     const [alertMessage, setAlertMessage] = useState("");
     const [websiteUrl, setWebsiteUrl] = useState("");
+    const [chatHistory, setChatHistory] = useState([]);
+
 
 
     const token = localStorage.getItem("access"); // get JWT access token
@@ -40,6 +42,34 @@ export default function Home({ onLogout }) {
 
         return () => clearInterval(interval);
     }, []);
+
+    const fetchChatHistory = async (bookId) => {
+        try {
+            const res = await axios.get(`${API_URL}api/chats_history/${bookId}/chat/`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setChatHistory(res.data.messages || []);
+        } catch (err) {
+            console.error("Failed to load chat history", err);
+            setChatHistory([]);
+        }
+    };
+
+    const handleClearChat = async () => {
+        if (!selectedBook) return;
+
+        const confirmClear = window.confirm("Are you sure you want to clear this chat?");
+        if (!confirmClear) return;
+
+        try {
+            await axios.delete(`${API_URL}api/chats_history/${selectedBook.id}/chat/`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            setChatHistory([]);
+        } catch (err) {
+            alert("Failed to clear chat.");
+        }
+    };
 
 
 
@@ -70,6 +100,7 @@ export default function Home({ onLogout }) {
             setBooks(res.data);
             if (res.data.length && !selectedBook) {
                 setSelectedBook(res.data[0]);
+                fetchChatHistory(res.data[0].id);  // ✅ load chat
             }
         } catch (err) {
             console.error("Failed to fetch books:", err);
@@ -148,48 +179,36 @@ export default function Home({ onLogout }) {
         if (!prompt.trim() || !selectedBook) {
             return alert("Select a book & enter a prompt");
         }
+
+        const newHistory = [...chatHistory, { role: "user", text: prompt }];
+        setChatHistory(newHistory); // optimistic update
+        setPrompt("");
         setLoading(true);
-        axios
-            .post(`${API_URL}api/generate-questions/`, {
+
+        try {
+            const res = await axios.post(`${API_URL}api/generate-questions/`, {
                 prompt,
-                book_id: selectedBook.id
-            },
-                {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                    },
-                }
-            )
-            .then((res) => {
-                const { questions, answer } = res.data;
+                book_id: selectedBook.id,
+                history: newHistory,
+            }, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
 
-                let finalList = [];
+            // const answer = res.data.answer || "⚠️ No answer generated.";
+            const answer = res.data.answer || "⚠️ No answer generated.";
+            const citations = res.data.matched_chunks || [];
 
-                if (questions) {
-                    finalList = Array.isArray(questions)
-                        ? questions
-                        : questions.split(/\n+/).filter((q) => q.trim());
-                } else if (answer) {
-                    // Split answer string by numbered pattern (1. ... 2. ... etc)
-                    // finalList = answer.split(/\n\s*\d+\.\s+/)
-                    //     .filter((q) => q.trim()) // Remove empty strings
-                    //     .map((q, i) => `${q.trim()}`);
-                    finalList = answer
-                        .replace(/\n\s*(\d+\.\s+)/g, '\n@@@Q$1') // Keep the number and mark question start
-                        .split('@@@Q')                           // Split using marker
-                        .filter(q => q.trim())                  // Remove empty entries
-                        .map(q => q.trim());                    // Trim spaces
-                }
-
-                if (finalList.length === 0) {
-                    finalList = ["⚠️ No output generated."];
-                }
-
-                setQuestions(finalList);
-            })
-            .catch(() => alert("Generation failed"))
-            .finally(() => setLoading(false));
+            setChatHistory(prev => [...prev, { role: "ai", text: answer, citations }]);
+            // setChatHistory(prev => [...prev, { role: "ai", text: answer }]);
+            setQuestions([]);  // clear old question style output
+        } catch {
+            alert("Generation failed");
+            setChatHistory(prev => [...prev, { role: "ai", text: "⚠️ Error generating response." }]);
+        } finally {
+            setLoading(false);
+        }
     };
+
 
 
     return (
@@ -232,6 +251,7 @@ export default function Home({ onLogout }) {
                                         <span
                                             onClick={() => {
                                                 setSelectedBook(b);
+                                                fetchChatHistory(b.id);  // ✅ load previous chat
                                                 setDropdownOpen(false);
                                             }}
                                         >
@@ -253,11 +273,42 @@ export default function Home({ onLogout }) {
                     </div>
                 </div>
 
+                {/* Results */}
+                {chatHistory.length > 0 && (
+                    <div className="chat-box">
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <div>
+                                <h2>🧠 Conversation</h2>
+                            </div>
+                            <button className="btn reset-btn" onClick={() => handleClearChat()}>
+                                🔄 Reset Conversation
+                            </button>
+                        </div>
+                        <div className="chat-messages">
+                            {chatHistory.map((msg, i) => (
+                                <div key={i} className={`chat-msg ${msg.role}`}>
+                                    <strong>{msg.role === "user" ? "🧑 You" : "🤖 AI"}:</strong> {msg.text}
+                                    {msg.role === "ai" && msg.citations && msg.citations.length > 0 && (
+                                        <div className="citations">
+                                            <strong>📚 Citations:</strong>
+                                            <ul>
+                                                {msg.citations.map((chunk, idx) => (
+                                                    <li key={idx}>{chunk}</li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+                                </div>
+
+                            ))}
+                        </div>
+                    </div>
+                )}
                 {/* Prompt Form */}
                 <form onSubmit={handleGenerate} className="form">
                     <textarea
                         className="prompt-input"
-                        rows={6}
+                        rows={3}
                         placeholder={placeholderPrompts[placeholderIndex]}
                         value={prompt}
                         onChange={(e) => setPrompt(e.target.value)}
@@ -272,21 +323,6 @@ export default function Home({ onLogout }) {
                     </button>
                 </form>
 
-                {/* Results */}
-                {questions.length > 0 && (
-                    <div className="results">
-                        <h2>{questions.length === 1 ? "Answer" : "Generated Questions"}</h2>
-                        {questions.length === 1 ? (
-                            <p>{questions[0]}</p>
-                        ) : (
-                            <ol className="question-list" >
-                                {questions.map((q, i) => (
-                                    <li key={i}>{q}</li>
-                                ))}
-                            </ol>
-                        )}
-                    </div>
-                )}
 
             </div>
 
