@@ -196,7 +196,7 @@ export default function Home({ onLogout }) {
 
             // const answer = res.data.answer || "⚠️ No answer generated.";
             const answer = res.data.answer || "⚠️ No answer generated.";
-            const citations = res.data.matched_chunks || [];
+            const citations = res.data.citations || [];
 
             setChatHistory(prev => [...prev, { role: "ai", text: answer, citations }]);
             // setChatHistory(prev => [...prev, { role: "ai", text: answer }]);
@@ -293,7 +293,7 @@ export default function Home({ onLogout }) {
                                             <strong>📚 Citations:</strong>
                                             <ul>
                                                 {msg.citations.map((chunk, idx) => (
-                                                    <li key={idx}>{chunk}</li>
+                                                    <li key={idx}>🔎 <i>{chunk}</i></li>
                                                 ))}
                                             </ul>
                                         </div>
