@@ -290,7 +290,7 @@ export default function Home({ onLogout }) {
                                     <strong>{msg.role === "user" ? "🧑 You" : "🤖 AI"}:</strong> {msg.text}
                                     {msg.role === "ai" && msg.citations && msg.citations.length > 0 && (
                                         <div className="citations">
-                                            <strong>📚 Citations:</strong>
+                                            <strong>📚 Citations(Source):</strong>
                                             <ul>
                                                 {msg.citations.map((chunk, idx) => (
                                                     <li key={idx}>🔎 <i>{chunk}</i></li>
